@@ -41,9 +41,7 @@ void setup() {
   Serial.begin(9600);
 }
 
-int readValueFromPin(const int& pin) {
-  return analogRead(pin);
-}
+
 
 int mapSensorValue(int sensorValue) {
   return map(sensorValue, 0, 1023, 0, 255);
