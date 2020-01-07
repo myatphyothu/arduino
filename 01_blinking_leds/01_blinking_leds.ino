@@ -6,124 +6,73 @@
   Also prints the results to the Serial Monitor.
 
   The circuit:
-  - potentiometer connected to analog pin 0.
-    Center pin of the potentiometer goes to the analog pin.
-    side pins of the potentiometer go to +5V and ground
+  - potentiometer:
+      - connected to analog pin A0.
+      - Center pin of the potentiometer goes to A0.
+      - side pins of the potentiometer go to +5V and GND
   - LED connected from digital pin 9 to ground
+  - button
+      - attached to pin 2 and +5V
+  -10K resistor attached to pin 2 and GND
 
   created 29 Dec. 2008
   modified 9 Apr 2012
   by Tom Igoe
 
-  This example code is in the public domain.
 
-  http://www.arduino.cc/en/Tutorial/AnalogInOutSerial
 */
 
 // These constants won't change. They're used to give names to the pins used:
-const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
+const int potentiometerInPIN = A0;  // Analog input pin that the potentiometer is attached to
+const int buttonInPIN = 2;
 const int analogOutPin = 9; // Analog output pin that the LED is attached to
+
+bool FADE_MODE = true;
+bool BTN_PRESSED = false;
+bool high = false;
+bool low = true;
+int btnPressTime = 0;
+int timeToWaitBeforeNextPress = 500; // 500ms
 
 float deltaTime = 0.0f;
 
 //int[] outPINs = new int[]{9};
 int outPINs[] = {9,10,11};
+int totalOutPINs = sizeof(outPINs) / sizeof(*outPINs);
 int osicillateTimer = 255;
 int osicillateCounter = 0;
 int osicillateIncrement = 1;
+
+int rawSensorValue = 0;
 int sensorValue = 0;        // value read from the pot
 int outputValue = 0;        // value output to the PWM (analog out)
 
 bool incrementPhase = true;
 
+void setup_InputsAndOutputs(){
+  pinMode(buttonInPIN, INPUT);
+  for (int i = 0; i != totalOutPINs; ++i){
+    pinMode(outPINs[i], OUTPUT);
+  }
+}
+
 void setup() {
+  
+  setup_InputsAndOutputs();
   // initialize serial communications at 9600 bps:
   Serial.begin(9600);
 }
 
-
-
-int mapSensorValue(int sensorValue) {
-  return map(sensorValue, 0, 1023, 0, 255);
-}
-
-int mapOsicillateValue(float osicillateValue) {
-  return map(osicillateValue, 0, osicillateTimer, 0, 255);
-}
-
-int getMappedSensorValue(const int& pin) {
-  return map(analogRead(pin), 0, 1023, 0, 255);
-}
-
-float mapfloat(long x, long in_min, long in_max, long out_min, long out_max)
-{
- return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
-}
-
-void osicillateFeed(int& val){
-  if (incrementPhase) {
-    if (osicillateCounter < val) {
-      osicillateCounter += osicillateIncrement;
-      delay(10);
-    } else {
-      incrementPhase = false;
-      delay(100  );
-    }
-  }else{
-    if (osicillateCounter > 0) {
-      osicillateCounter -= osicillateIncrement;
-      delay(10);
-    } else {
-      incrementPhase = true;
-      delay(100);
-    }
-  }
-  
-  //int mappedSensorValue = mapfloat(val,0,osicillateTimer,0,255);
-  
-  Serial.print(osicillateCounter);
-  Serial.print("\n");
-  //Serial.print(mappedSensorValue);
-  //Serial.print("\n");
-  feedToOutputPINs(osicillateCounter);
-}
-
-void feed(String& led, int& val, int& outpin) {
-  analogWrite(outpin, val);
-  printToSerialMonitor(led, val, outpin);
-}
-
-void feedToOutputPINs(int& val) {
-  
-  int t = sizeof(outPINs) / sizeof(*outPINs);
-  for (int i = 0; i != t; ++i) {
-    String led = "led"+i;
-    feed(led, val, *(outPINs+i));
-    
-  }
-}
-
-void printToSerialMonitor(String& led, int& in, int& out){
-  /*Serial.print("Led = " + led);
-  Serial.print("\tsensor = ");
-  Serial.print(in);
-  Serial.print("\t output = ");
-  Serial.println(out);*/
-  
-}
-
-
-
 void loop() {
-  int rawSensorValue = readValueFromPin(analogInPin);
-  sensorValue = getMappedSensorValue(analogInPin);
-  if (rawSensorValue > 100) {
-    
-    osicillateFeed(sensorValue);
-  } else {
-    
-    
-    feedToOutputPINs(sensorValue);
-  }
+  rawSensorValue = readValueFromPin(potentiometerInPIN);
+  sensorValue = mapSensorToRGBValue(rawSensorValue);
+  registerBtnPress();
+  //Serial.print(pushBtnState + "\n");
+  FADE_MODE = BTN_PRESSED;
+  //Serial.print(FADE_MODE + "\n");
+  if (FADE_MODE)
+    fadeLED();
+  else
+    normalLED();
   delay(2);
 }
